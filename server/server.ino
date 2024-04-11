@@ -87,7 +87,6 @@ int getTime(){
 //The loop acts as a server, whenever a call to water comes up, it shoots the getTime function and waters.
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
-
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
     String currentLine = "";                // make a String to hold incoming data from the client
