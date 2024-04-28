@@ -22,13 +22,15 @@ WiFiServer server(80);
 const char* ssid = "realme 8 5G"; // Write here your router's username
 const char* password = "12345678"; // Write here your router's passward
 const char* SERVER_IP="http://192.168.70.250:3000/sprinkler/predict";
-const char* GET_WATER="http://192.168.70.250:3000/sprinkler/numberofsprinklerOn";
+const char* GET_WATER_ONE="http://192.168.70.250:3000/sprinkler/water/one";
+const char* GET_WATER_TWO="http://192.168.70.250:3000/sprinkler/water/two";
+
 String openWeatherMapApiKey = "8112f068a8a7c56dfb2d10b9daadaade";
 String my_city = "Trivandrum"; //specify your city
 String my_country_code = "IN"; //specify your country code
 int relayInput=2;
 String json_array;
-String sprinklerID="65f09634427352d91ba19443";
+String sprinklerID="65f09c5f2baee79a5e235ce1";
 String userId="65f09627427352d91ba1943c";
 unsigned long currentTime = millis();
 // Previous time
@@ -65,22 +67,28 @@ String httpGETRequest(const char* serverName) {
   return payload;
 }
 
-int getTime(){
-  int amount =0;
+int getTime(bool isMorning){
+  int amount =-1;
   if ((WiFi.status() == WL_CONNECTED)) {
 
     WiFiClient client;
     HTTPClient http;
-
+    http.setTimeout(20000);
     Serial.print("[HTTP] begin...\n");
     // configure traged server and url
-    http.begin(client, GET_WATER);  // HTTP
+    String serverLink=GET_WATER_TWO;
+    if(isMorning)
+    {
+      serverLink=GET_WATER_ONE;
+    }
+    http.begin(client, serverLink);  // HTTP
     http.addHeader("Content-Type", "application/json");
     int Temperature=10;
     Serial.print("[HTTP] POST...\n");
     // start connection and send HTTP header and body
-    int httpCode = http.POST("{\"temperature\":\"" + String(Temperature,2) + "\"}");
+    int httpCode = http.POST("{\"sprinklerID\":\"" + sprinklerID + "\"}");
 
+    Serial.println(httpCode);
     // httpCode will be negative on error
     if (httpCode > 0) {
       // HTTP header has been send and Server response header has been handled
@@ -88,6 +96,7 @@ int getTime(){
 
       // file found at server
       if (httpCode == HTTP_CODE_OK) {
+        Serial.println(http.getString());
         amount = http.getString().toInt();
       }
     } else {
@@ -97,6 +106,8 @@ int getTime(){
     http.end();
   }
   Serial.print("Called");
+  if(amount==-1)
+  amount=500;
   Serial.println(amount);
   return amount;
 }
@@ -184,12 +195,20 @@ void irrigate(){
             client.println();
             
             // turns the GPIOs on and off
-            if (header.indexOf("GET /on") >= 0) {
-              Serial.println("GPIO 5 on");
-              int time=getTime();
+            if (header.indexOf("GET /one") >= 0) {
+              int time=getTime(true);
               digitalWrite(relayInput, LOW);
 	            delay(time);
 	            digitalWrite(relayInput, HIGH); 
+            }
+            else if (header.indexOf("GET /two") >= 0) {
+              int time=getTime(false);
+              digitalWrite(relayInput, LOW);
+	            delay(time);
+	            digitalWrite(relayInput, HIGH); 
+            }
+            else if (header.indexOf("GET /sense") >= 0) {
+              sendData();
             }
             break;
           } else { // if you got a newline, then clear currentLine
